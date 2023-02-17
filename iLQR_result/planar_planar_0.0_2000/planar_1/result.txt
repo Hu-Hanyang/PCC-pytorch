@@ -1,0 +1,11 @@
+planar: 0.0
+planar: 0.75
+planar: 0.0
+planar: 0.0
+planar: 0.75
+planar: 0.0
+planar: 0.0
+planar: 0.0
+planar: 0.0
+planar: 0.75
+Average percentage: 0.225

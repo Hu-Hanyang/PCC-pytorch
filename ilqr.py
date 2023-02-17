@@ -36,7 +36,7 @@ torch.backends.cudnn.deterministic = True
 torch.set_default_dtype(torch.float64)
 
 config_path = {
-    "plane": "ilqr_config/plane.json",
+    "planar": "ilqr_config/planar.json",
     "swing": "ilqr_config/swing.json",
     "balance": "ilqr_config/balance.json",
     "cartpole": "ilqr_config/cartpole.json",

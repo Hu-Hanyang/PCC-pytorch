@@ -1,0 +1,2 @@
+Average percentage of all models: 0.225
+Best model: planar_1, best percentage: 0.225
