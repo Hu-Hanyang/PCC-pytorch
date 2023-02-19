@@ -21,6 +21,8 @@ python train_pcc.py \
     --iter_save=1000 \
     --save_map=True
 ### 1.3 Using iLQR
-python ilqr.py --task=planar --setting_path="result/planar"
+1. python ilqr.py --task=planar --setting_path="result/planar"
+2. python ilqr.py --task=planar --setting_path="result/planar" --epoch=5000
 #### 1.3.1 questions
-1. settings 中的 armotized是什么意思？
+1   settings 中的 armotized是什么意思？
+    A: 是否使用linear approximation to the Jacobians.

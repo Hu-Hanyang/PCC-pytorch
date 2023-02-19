@@ -1,0 +1,6 @@
+{
+  "task": "planar",
+  "setting_path": "result/planar",
+  "noise": 0.0,
+  "epoch": 5000
+}
