@@ -171,7 +171,7 @@ def main(args):
                 for traj_id in range(len(all_actions_trajs)):
                     # initialize the inverse regulator
                     inv_regulator = inv_regulator_init # 1e-5
-                    for iter in range(1, ilqr_iters + 1): # range(4+1)
+                    for iter in range(1, ilqr_iters + 1): # 1, 2, 3, 4
                         u_seq = all_actions_trajs[traj_id]
                         z_seq = compute_latent_traj(z_start_horizon, u_seq, dynamics)
                         # compute the linearization matrices
