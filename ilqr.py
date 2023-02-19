@@ -55,11 +55,11 @@ def main(args):
     assert task_name in ["planar", "balance", "swing", "cartpole", "threepole", "pendulum_gym", "mountain_car"]
     env_name = "pendulum" if task_name in ["balance", "swing"] else task_name
 
-    setting_path = args.setting_path
-    setting = os.path.basename(os.path.normpath(setting_path))
-    noise = args.noise
-    epoch = args.epoch
-    x_dim, z_dim, u_dim = env_data_dim[env_name]
+    setting_path = args.setting_path  # seeting_path = "result/planar"
+    setting = os.path.basename(os.path.normpath(setting_path))  # setting = planar
+    noise = args.noise  # 0.0
+    epoch = args.epoch  # 2000
+    x_dim, z_dim, u_dim = env_data_dim[env_name]  # (1600, 2, 2)
     if env_name in ["planar", "pendulum"]:
         x_dim = np.prod(x_dim)
 
@@ -70,11 +70,11 @@ def main(args):
         json.dump(args.__dict__, f, indent=2)
 
     # each trained model will perform 10 random tasks
-    all_task_configs = []
-    for task_counter in range(10):
+    all_task_configs = []  # 10个tasks的所有配置
+    for task_counter in range(10):  # 生成10个不同起点和终点的tasks
         # config for this task
         with open(config_path[task_name]) as f:
-            config = json.load(f)
+            config = json.load(f) # 这里是加载参数，比如planar的参数
 
         # sample random start and goal state
         s_start_min, s_start_max = config["start_min"], config["start_max"]
@@ -90,7 +90,7 @@ def main(args):
         for dI in os.listdir(setting_path)
         if os.path.isdir(os.path.join(setting_path, dI))
     ]
-    log_folders.sort()
+    log_folders.sort()  # log_folders = ['result/planar/planar_1']
 
     # statistics on all trained models
     avg_model_percent = 0.0
@@ -98,43 +98,43 @@ def main(args):
     for log in log_folders:
         with open(log + "/settings", "r") as f:
             settings = json.load(f)
-            armotized = settings["armotized"]
+            armotized = settings["armotized"] # ?
 
         log_base = os.path.basename(os.path.normpath(log))
-        model_path = ilqr_result_path + "/" + log_base
+        model_path = ilqr_result_path + "/" + log_base  # model_path = "iLQR_result/planar_planar_0.0_2000/planar_1"
         if not os.path.exists(model_path):
             os.makedirs(model_path)
-        print("iLQR for " + log_base)
+        print("iLQR for " + log_base) 
 
         # load the trained model
         model = PCC(armotized, x_dim, z_dim, u_dim, env_name)
         model.load_state_dict(torch.load(log + "/model_" + str(epoch), map_location="cpu"))
         model.eval()
-        dynamics = model.dynamics
-        encoder = model.encoder
+        dynamics = model.dynamics # z_t+1 = F(z_t, u_t)
+        encoder = model.encoder # zt = encoder(xt) where xt is the image
 
         # run the task with 10 different start and goal states for a particular model
         avg_percent = 0.0
-        for task_counter, config in enumerate(all_task_configs):
+        for task_counter, config in enumerate(all_task_configs):  # 对于每个task的goal state 和start state不同，记录在config中
 
             print("Performing task %d: " % (task_counter) + str(config["task"]))
 
             # environment specification
-            horizon = config["horizon_prob"]
-            plan_len = config["plan_len"]
+            horizon = config["horizon_prob"] # T = 40
+            plan_len = config["plan_len"]  # control_t = 10
 
             # ilqr specification
-            R_z = config["q_weight"] * np.eye(z_dim)
+            R_z = config["q_weight"] * np.eye(z_dim) # c(zt, ut) = (zt - zgoal)^T*Q*(zt - zgoal) + ut^T*R*ut
             R_u = config["r_weight"] * np.eye(u_dim)
-            num_uniform = config["uniform_trajs"]
-            num_extreme = config["extreme_trajs"]
-            ilqr_iters = config["ilqr_iters"]
-            inv_regulator_init = config["pinv_init"]
-            inv_regulator_multi = config["pinv_mult"]
-            inv_regulator_max = config["pinv_max"]
-            alpha_init = config["alpha_init"]
-            alpha_mult = config["alpha_mult"]
-            alpha_min = config["alpha_min"]
+            num_uniform = config["uniform_trajs"] # 3, ?
+            num_extreme = config["extreme_trajs"] # 3, ?
+            ilqr_iters = config["ilqr_iters"] # 4, ?
+            inv_regulator_init = config["pinv_init"] # 1e-5
+            inv_regulator_multi = config["pinv_mult"] # 2.0
+            inv_regulator_max = config["pinv_max"] # 10
+            alpha_init = config["alpha_init"] # 1.0
+            alpha_mult = config["alpha_mult"] # 0.5 
+            alpha_min = config["alpha_min"] # 1e-4
 
             s_start = config["s_start"]
             s_goal = config["s_goal"]
@@ -158,20 +158,20 @@ def main(args):
             z_goal = z_goal.squeeze().numpy()
 
             # initialize actions trajectories
-            all_actions_trajs = random_actions_trajs(mdp, num_uniform, num_extreme, plan_len)
+            all_actions_trajs = random_actions_trajs(mdp, num_uniform, num_extreme, plan_len) # 6 * 10
 
-            # perform reciding horizon iLQR
+            # perform receding horizon iLQR
             s_start_horizon = np.copy(s_start)  # s_start and z_start is changed at each horizon
             z_start_horizon = np.copy(z_start)
-            obs_traj = [mdp.render(s_start).squeeze()]
+            obs_traj = [mdp.render(s_start).squeeze()] # x_0
             goal_counter = 0.0
             for plan_iter in range(1, horizon + 1):
                 latent_cost_list = [None] * len(all_actions_trajs)
                 # iterate over all trajectories
                 for traj_id in range(len(all_actions_trajs)):
                     # initialize the inverse regulator
-                    inv_regulator = inv_regulator_init
-                    for iter in range(1, ilqr_iters + 1):
+                    inv_regulator = inv_regulator_init # 1e-5
+                    for iter in range(1, ilqr_iters + 1): # range(4+1)
                         u_seq = all_actions_trajs[traj_id]
                         z_seq = compute_latent_traj(z_start_horizon, u_seq, dynamics)
                         # compute the linearization matrices

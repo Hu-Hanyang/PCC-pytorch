@@ -22,3 +22,5 @@ python train_pcc.py \
     --save_map=True
 ### 1.3 Using iLQR
 python ilqr.py --task=planar --setting_path="result/planar"
+#### 1.3.1 questions
+1. settings 中的 armotized是什么意思？

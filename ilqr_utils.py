@@ -165,7 +165,7 @@ def update_horizon_start(mdp, s, u, encoder, config):
 def random_uniform_actions(mdp, plan_len):
     # create a trajectory of random actions
     random_actions = []
-    for i in range(plan_len):
+    for i in range(plan_len):  # 10
         action = mdp.sample_random_action()
         random_actions.append(action)
     return np.array(random_actions)
@@ -182,11 +182,11 @@ def random_extreme_actions(mdp, plan_len):
 
 def random_actions_trajs(mdp, num_uniform, num_extreme, plan_len):
     actions_trajs = []
-    for i in range(num_uniform):
-        actions_trajs.append(random_uniform_actions(mdp, plan_len))
-    for j in range(num_extreme):
+    for i in range(num_uniform): # 3
+        actions_trajs.append(random_uniform_actions(mdp, plan_len))  # 3 * 10
+    for j in range(num_extreme): # 3
         actions_trajs.append(random_extreme_actions(mdp, plan_len))
-    return actions_trajs
+    return actions_trajs # has 6 elements, each element's length is 10
 
 
 def refresh_actions_trajs(actions_trajs, traj_opt_id, mdp, length, num_uniform, num_extreme):
