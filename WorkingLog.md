@@ -20,6 +20,25 @@ python train_pcc.py \
     --num_iter=5000 \
     --iter_save=1000 \
     --save_map=True
+
+    python train_pcc.py \
+    --env=planar \
+    --armotized=False \
+    --log_dir=planar_2 \
+    --seed=3047 \
+    --data_size=5000 \
+    --noise=0 \
+    --batch_size=128 \
+    --lam_p=1.0 \
+    --lam_c=8.0 \
+    --lam_cur=8.0 \
+    --vae_coeff=0.01 \
+    --determ_coeff=0.3 \
+    --lr=0.0005 \
+    --decay=0.001 \
+    --num_iter=5000 \
+    --iter_save=1000 \
+    --save_map=True
 ### 1.3 Using iLQR
 1. python ilqr.py --task=planar --setting_path="result/planar"
 2. python ilqr.py --task=planar --setting_path="result/planar" --epoch=5000
