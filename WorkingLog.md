@@ -45,3 +45,24 @@ python train_pcc.py \
 #### 1.3.1 questions
 1   settings 中的 armotized是什么意思？
     A: 是否使用linear approximation to the Jacobians.
+
+## 2 Pendulum
+### 2.1 Training PCC
+python train_pcc.py \
+    --env=pendulum\
+    --armotized=False \
+    --log_dir=pendulum_1 \
+    --seed=1 \
+    --data_size=20000 \
+    --noise=0 \
+    --batch_size=128 \
+    --lam_p=1.0 \
+    --lam_c=8.0 \
+    --lam_cur=8.0 \
+    --vae_coeff=0.01 \
+    --determ_coeff=0.3 \
+    --lr=0.0005 \
+    --decay=0.001 \
+    --num_iter=5000 \
+    --iter_save=1000 \
+    --save_map=True
