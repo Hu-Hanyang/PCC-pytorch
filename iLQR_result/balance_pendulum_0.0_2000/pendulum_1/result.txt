@@ -1,0 +1,11 @@
+balance: 1.0
+balance: 1.0
+balance: 1.0
+balance: 1.0
+balance: 1.0
+balance: 1.0
+balance: 1.0
+balance: 1.0
+balance: 1.0
+balance: 1.0
+Average percentage: 1.0

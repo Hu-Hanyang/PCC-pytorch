@@ -1,0 +1,6 @@
+{
+  "task": "balance",
+  "setting_path": "result/pendulum",
+  "noise": 0.0,
+  "epoch": 2000
+}
