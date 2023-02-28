@@ -1,5 +1,5 @@
 ## 1 Planar
-### 1.1 Revise
+### 1.1 Revise from the original repository
 1. rename all "plane" to "planar" in the ilqr_config.json, ilqr.py and ilqr_utils.py.
 
 ### 1.2 Training PCC
