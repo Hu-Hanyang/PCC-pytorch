@@ -78,3 +78,11 @@ tensorboard --logdir=logs/pendulum
 
 ### 2.3 Using iLQR
 1. python ilqr.py --task=balance --setting_path="result/pendulum"
+2. Change the balance.json file:
+originial:
+"start_min": [0, 0],
+"start_max": [0, 0],
+after changing:
+"start_min": [-0.5236, -0.5236],
+"start_max": [0.5236, 0.5236],
+python ilqr.py --task=balance --setting_path="result/pendulum"
