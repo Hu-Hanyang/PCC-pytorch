@@ -1,0 +1,11 @@
+balance: 0.9
+balance: 1.0
+balance: 1.0
+balance: 1.0
+balance: 0.96
+balance: 0.91
+balance: 1.0
+balance: 1.0
+balance: 0.98
+balance: 0.46
+Average percentage: 0.921

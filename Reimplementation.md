@@ -45,6 +45,10 @@ python train_pcc.py \
 tensorboard --logdir=logs/planar/planar_1
 tensorboard --logdir=logs/planar/planar_2
 
+### 1.4 Try more and less obstacles
+
+### 1.5 
+
 ### 1.4 Using iLQR
 1. python ilqr.py --task=planar --setting_path="result/planar"
 2. python ilqr.py --task=planar --setting_path="result/planar" --epoch=5000
@@ -86,3 +90,5 @@ after changing:
 "start_min": [-0.5236, -0.5236],
 "start_max": [0.5236, 0.5236],
 python ilqr.py --task=balance --setting_path="result/pendulum"
+
+### 2.4 Try to use the trained model in the gym environment

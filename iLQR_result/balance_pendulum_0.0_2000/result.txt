@@ -1,2 +1,2 @@
-Average percentage of all models: 1.0
-Best model: pendulum_1, best percentage: 1.0
+Average percentage of all models: 0.921
+Best model: pendulum_1, best percentage: 0.921

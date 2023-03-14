@@ -1,21 +1,5 @@
+balance: 0.73
 balance: 1.0
 balance: 1.0
-balance: 1.0
-balance: 1.0
-balance: 1.0
-balance: 1.0
-balance: 1.0
-balance: 1.0
-balance: 1.0
-balance: 1.0
-Average percentage: 1.0balance: 1.0
-balance: 1.0
-balance: 1.0
-balance: 1.0
-balance: 1.0
-balance: 1.0
-balance: 1.0
-balance: 1.0
-balance: 1.0
-balance: 1.0
-Average percentage: 1.0
+balance: 0.92
+balance: 0.92
