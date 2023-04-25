@@ -13,60 +13,69 @@ from mdp.pendulum_mdp import PendulumMDP
 from mdp.three_pole_mdp import ThreePoleMDP
 from PIL import Image
 from tqdm import trange
+import dmc2gym
+import yaml
+import torch
+from torchvision.transforms.functional import rgb_to_grayscale
+
 
 
 root_path = str(Path(os.path.dirname(os.path.abspath(__file__))).parent)
 
-widths = {"pendulum": 48, "cartpole": 80, "threepole": 80}
-heights = {"pendulum": 48, "cartpole": 80, "threepole": 80}
-state_dims = {"pendulum": 2, "cartpole": 4, "threepole": 6}
-frequencies = {"pendulum": 50, "cartpole": 50, "threepole": 50}
+widths = {"pendulum": 48, "cartpole": 80, "threepole": 80, "ccartpole": 80}
+heights = {"pendulum": 48, "cartpole": 80, "threepole": 80, "ccartpole": 80}
+state_dims = {"pendulum": 2, "cartpole": 4, "threepole": 6, "ccartpole": 3}
+u_dims = {"ccartpole": 1}
+frequencies = {"pendulum": 50, "cartpole": 50, "threepole": 50, "ccartpole": 50}
 mdps = {"pendulum": PendulumMDP, "cartpole": CartPoleMDP, "threepole": ThreePoleMDP}
 
 
 def sample(env_name, sample_size, noise):
     """
-    return [(x, u, x_next, s, s_next)]
+    env_name = ccartpole
+    return [(x, u, x_next)]
     """
     width, height, frequency = widths[env_name], heights[env_name], frequencies[env_name]
     s_dim = state_dims[env_name]
-    mdp = mdps[env_name](width=width, height=height, frequency=frequency, noise=noise)
+    u_dim = u_dims[env_name]
+    #load yaml configuration
+    with open(os.path.join("data/", env_name+'.yaml')) as file:
+        config = yaml.safe_load(file)
+    env = dmc2gym.make(
+        domain_name=config['domain_name'],
+        task_name=config['task_name'],
+        seed=config['seed'],
+        visualize_reward=False,
+        from_pixels=(config['env']['encoder_type'] == 'pixel'),
+        height=config['env']['pre_transform_image_size'],
+        width=config['env']['pre_transform_image_size'],
+        frame_skip=config['env']['action_repeat'])
+    
+    env.seed(config['seed'])
 
     # Data buffers to fill.
-    x_data = np.zeros((sample_size, width, height, 2), dtype="float32")
-    u_data = np.zeros((sample_size, mdp.action_dim), dtype="float32")
-    x_next_data = np.zeros((sample_size, width, height, 2), dtype="float32")
-    state_data = np.zeros((sample_size, s_dim, 2), dtype="float32")
-    state_next_data = np.zeros((sample_size, s_dim, 2), dtype="float32")
+    x_data = np.zeros((sample_size, 2, width, height), dtype="float32")  # todo: change the dimensions
+    u_data = np.zeros((sample_size, u_dim), dtype="float32")
+    x_next_data = np.zeros((sample_size, 2, width, height), dtype="float32")
 
     # Generate interaction tuples (random states and actions).
     for sample in trange(sample_size, desc="Sampling " + env_name + " data"):
-        s0 = mdp.sample_random_state()
-        x0 = mdp.render(s0)
-        # print(f"The size of one image is {x0.shape}. \n")
-        a0 = mdp.sample_random_action()
-        s1 = mdp.transition_function(s0, a0)
+        x0 = env.reset()  # x0.shape = [3, 100, 100]
+        u0 = env.action_space.sample()
+        x1, _, _, _ = env.step(u0)
+        u1 = env.action_space.sample()  # save this
+        x2, _, _, _ = env.step(u1)
+        x0, x1, x2 = rgb_to_gray(x0, x1, x2)  # shape: [1, 100, 100]
+        # Current state
+        x_data[sample, 0, :, :] = x0
+        x_data[sample, 1, :, :] = x1
+        # Action
+        u_data[sample] = u1
+        # Next state
+        x_next_data[sample, 0, :, :] = x1
+        x_next_data[sample, 1, :, :] = x2
 
-        x1 = mdp.render(s1)
-        a1 = mdp.sample_random_action()
-        s2 = mdp.transition_function(s1, a1)
-        x2 = mdp.render(s2)
-        # Store interaction tuple.
-        # Current state (w/ history).
-        x_data[sample, :, :, 0] = x0[:, :, 0]
-        x_data[sample, :, :, 1] = x1[:, :, 0]
-        state_data[sample, :, 0] = s0
-        state_data[sample, :, 1] = s1
-        # Action.
-        u_data[sample] = a1
-        # Next state (w/ history).
-        x_next_data[sample, :, :, 0] = x1[:, :, 0]
-        x_next_data[sample, :, :, 1] = x2[:, :, 0]
-        state_next_data[sample, :, 0] = s1
-        state_next_data[sample, :, 1] = s2
-    # print(f"The shape of x_data is {x_data.shape}. \n")
-    # print(f"The shape of x_next_data is {x_next_data.shape}. \n")
-    return x_data, u_data, x_next_data, state_data, state_next_data
+    return x_data, u_data, x_next_data
 
 
 def write_to_file(env_name, sample_size, noise):
@@ -116,6 +125,22 @@ def write_to_file(env_name, sample_size, noise):
             outfile,
             indent=2,
         )
+
+
+def rgb_to_gray(x0, x1, x2):
+    """
+    Convert the inputs to tensor first, then use rgb_to_grayscale, finally return ndarray
+    """
+    x0 = torch.from_numpy(x0)
+    x1 = torch.from_numpy(x1)
+    x2 = torch.from_numpy(x2)
+    x0 = rgb_to_grayscale(x0)
+    x1 = rgb_to_grayscale(x1)
+    x2 = rgb_to_grayscale(x2)
+    x0 = x0.numpy() / 255.0
+    x1 = x1.numpy() / 255.0
+    x2 = x2.numpy() / 255.0
+    return x0, x1, x2
 
 
 def main(args):

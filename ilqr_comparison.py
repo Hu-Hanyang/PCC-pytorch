@@ -2,20 +2,30 @@ import argparse
 import json
 import os
 import random
+import matplotlib.pyplot as plt
+from PIL import Image
+
 
 import numpy as np
+import dmc2gym
+import yaml
 import torch
 from ilqr_utils import (
     backward,
     compute_latent_traj,
     forward,
     get_x_data,
+    get_x_data_comparison,
+    get_x_goal,
     latent_cost,
     random_actions_trajs,
+    random_actions_trajs_comparison,
     refresh_actions_trajs,
+    refresh_actions_trajs_comparison,
     save_traj,
     seq_jacobian,
     update_horizon_start,
+    updata_horizon_start_comparison,
 )
 from mdp.cartpole_mdp import CartPoleMDP
 from mdp.pendulum_mdp import PendulumMDP
@@ -57,7 +67,7 @@ def main(args):
     assert task_name in ["planar", "balance", "swing", "cartpole", "threepole", "pendulum_gym", "mountain_car", "ccartpole"]
     env_name = "pendulum" if task_name in ["balance", "swing"] else task_name
 
-    setting_path = args.setting_path  # setting_path = "result/planar"
+    setting_path = args.setting_path  # seeting_path = "result/planar"
     setting = os.path.basename(os.path.normpath(setting_path))  # setting = planar
     noise = args.noise  # 0.0
     epoch = args.epoch  # 2000
@@ -78,11 +88,11 @@ def main(args):
         with open(config_path[task_name]) as f:
             config = json.load(f) # 这里是加载参数，比如planar的参数
 
-        # sample random start and goal state, s is the original nonlinear state
-        s_start_min, s_start_max = config["start_min"], config["start_max"]
-        config["s_start"] = np.random.uniform(low=s_start_min, high=s_start_max)
-        s_goal = config["goal"][np.random.choice(len(config["goal"]))]
-        config["s_goal"] = np.array(s_goal)
+        # sample random start and goal state
+        # s_start_min, s_start_max = config["start_min"], config["start_max"]
+        # config["s_start"] = np.random.uniform(low=s_start_min, high=s_start_max)
+        # s_goal = config["goal"][np.random.choice(len(config["goal"]))]
+        # config["s_goal"] = np.array(s_goal)
 
         all_task_configs.append(config)
 
@@ -116,14 +126,14 @@ def main(args):
         encoder = model.encoder # zt = encoder(xt) where xt is the image
 
         # run the task with 10 different start and goal states for a particular model
-        avg_percent = 0.0
+        avg_rewards = 0.0
         for task_counter, config in enumerate(all_task_configs):  # 对于每个task的goal state 和start state不同，记录在config中
 
             print("Performing task %d: " % (task_counter) + str(config["task"]))
 
             # environment specification
             horizon = config["horizon_prob"] # T = 50
-            plan_len = config["plan_len"]  # control_t = 5
+            plan_len = config["plan_len"]  # control_t = 10
 
             # ilqr specification
             R_z = config["q_weight"] * np.eye(z_dim) # c(zt, ut) = (zt - zgoal)^T*Q*(zt - zgoal) + ut^T*R*ut
@@ -138,53 +148,63 @@ def main(args):
             alpha_mult = config["alpha_mult"] # 0.5 
             alpha_min = config["alpha_min"] # 1e-4
 
-            s_start = config["s_start"]
-            s_goal = config["s_goal"]
+            # s_start = config["s_start"]  # todo: cannot specify a spcific state
+            # s_goal = config["s_goal"]  # todo: comment out
 
             # mdp
-            if env_name == "planar":
-                mdp = PlanarObstaclesMDP(goal=s_goal, goal_thres=config["distance_thresh"], noise=noise)
-            elif env_name == "pendulum":
-                mdp = PendulumMDP(frequency=config["frequency"], noise=noise, torque=config["torque"])
-            elif env_name == "cartpole":
-                mdp = CartPoleMDP(frequency=config["frequency"], noise=noise)
-            elif env_name == "threepole":
-                mdp = ThreePoleMDP(frequency=config["frequency"], noise=noise, torque=config["torque"])
+            if  env_name == "ccartpole":
+                with open(os.path.join("data/", env_name+'.yaml')) as file:
+                    config2 = yaml.safe_load(file)
+                mdp = dmc2gym.make(
+                    domain_name=config2['domain_name'],
+                    task_name=config2['task_name'],
+                    seed=task_counter,  # change the random seed: task_counter, config2["seed"]
+                    visualize_reward=False,
+                    from_pixels=(config2['env']['encoder_type'] == 'pixel'),
+                    height=config2['env']['pre_transform_image_size'],
+                    width=config2['env']['pre_transform_image_size'],
+                    frame_skip=config2['env']['action_repeat']
+                ) 
+                print("dm_control environment load successfully!")
+            else:
+                print("Check the comparison name ccartpole!")
+
             # get z_start and z_goal
-            x_start = get_x_data(mdp, s_start, config)  # x_data.shape = tensor (1, 2, 80, 80)
-            x_goal = get_x_data(mdp, s_goal, config)  # x_goal.shape = tensor (1, 2, 80, 80)
+            x_start, x0 = get_x_data_comparison(mdp, config)   # x_data.shape = tensor (1, 2, 80, 80)
+            x_goal = get_x_goal(config)  # x_goal.shape = tensor (1, 2, 80, 80)
             with torch.no_grad():
                 z_start = encoder(x_start).mean
                 z_goal = encoder(x_goal).mean
-            z_start = z_start.squeeze().numpy()  # 
+            z_start = z_start.squeeze().numpy()
             z_goal = z_goal.squeeze().numpy()
 
             # initialize actions trajectories
-            all_actions_trajs = random_actions_trajs(mdp, num_uniform, num_extreme, plan_len) # 6 * (10, 1)
+            # all_actions_trajs = random_actions_trajs(mdp, num_uniform, num_extreme, plan_len) # 6 * 10
+            all_actions_trajs = random_actions_trajs_comparison(mdp, num_uniform, num_extreme, plan_len)
 
             # perform receding horizon iLQR
-            s_start_horizon = np.copy(s_start)  # s_start_horizon.shape = (4,)
             z_start_horizon = np.copy(z_start)
-            obs_traj = [mdp.render(s_start).squeeze()] # [shape is (80, 80)]
+            obs_traj = [x0] # x_0.shape = ndarray (80, 80)
             goal_counter = 0.0
-            for plan_iter in range(1, horizon + 1):  # plan_iter = 1, 2,..., 50
-                latent_cost_list = [None] * len(all_actions_trajs)  # 6
+            optimal_actions = []
+            for plan_iter in range(1, horizon + 1):
+                latent_cost_list = [None] * len(all_actions_trajs)
                 # iterate over all trajectories
-                for traj_id in range(len(all_actions_trajs)):  # traj_id = 0, 1,..., 5
+                for traj_id in range(len(all_actions_trajs)):
                     # initialize the inverse regulator
                     inv_regulator = inv_regulator_init # 1e-5
                     for iter in range(1, ilqr_iters + 1): # 1, 2, 3, 4
-                        u_seq = all_actions_trajs[traj_id]  # 1 x 10
-                        z_seq = compute_latent_traj(z_start_horizon, u_seq, dynamics)  # len(z_seq) = 11?, use PCC.dynamics 
+                        u_seq = all_actions_trajs[traj_id]
+                        z_seq = compute_latent_traj(z_start_horizon, u_seq, dynamics)
                         # compute the linearization matrices
                         A_seq, B_seq = seq_jacobian(dynamics, z_seq, u_seq)
                         # run backward
-                        k_small, K_big = backward(R_z, R_u, z_seq, u_seq, z_goal, A_seq, B_seq, inv_regulator)  # equation (29)
+                        k_small, K_big = backward(R_z, R_u, z_seq, u_seq, z_goal, A_seq, B_seq, inv_regulator)
                         current_cost = latent_cost(R_z, R_u, z_seq, z_goal, u_seq)
                         # forward using line search
-                        alpha = alpha_init  # alpha_init = 1.0
+                        alpha = alpha_init
                         accept = False  # if any alpha is accepted
-                        while alpha > alpha_min:  # alpha > 1e-4
+                        while alpha > alpha_min:
                             z_seq_cand, u_seq_cand = forward(
                                 z_seq, all_actions_trajs[traj_id], k_small, K_big, dynamics, alpha
                             )
@@ -195,27 +215,24 @@ def main(args):
                                 latent_cost_list[traj_id] = cost_cand
                                 break
                             else:
-                                alpha *= alpha_mult  # alpha * 0.5
+                                alpha *= alpha_mult
                         if accept:
-                            inv_regulator = inv_regulator_init  # 1e-5
+                            inv_regulator = inv_regulator_init
                         else:
-                            inv_regulator *= inv_regulator_multi  # inv_regulator * 2.0
-                        if inv_regulator > inv_regulator_max:  # > 10
+                            inv_regulator *= inv_regulator_multi
+                        if inv_regulator > inv_regulator_max:
                             break
 
                 for i in range(len(latent_cost_list)):
                     if latent_cost_list[i] is None:
                         latent_cost_list[i] = np.inf
                 traj_opt_id = np.argmin(latent_cost_list)
-                action_chosen = all_actions_trajs[traj_opt_id][0]  # the first best u^* in all 6 random actions trajectories
-                s_start_horizon, z_start_horizon = update_horizon_start(
-                    mdp, s_start_horizon, action_chosen, encoder, config
-                )
+                action_chosen = all_actions_trajs[traj_opt_id][0]
+                optimal_actions.append(action_chosen)
+                z_start_horizon = updata_horizon_start_comparison(mdp, z_start_horizon, action_chosen, dynamics, config)  # todo: change the way to update the start z horizon
 
-                obs_traj.append(mdp.render(s_start_horizon).squeeze())  # [shape is (80, 80)]
-                goal_counter += mdp.reward_function(s_start_horizon)
 
-                all_actions_trajs = refresh_actions_trajs(
+                all_actions_trajs = refresh_actions_trajs_comparison(
                     all_actions_trajs,
                     traj_opt_id,
                     mdp,
@@ -224,32 +241,56 @@ def main(args):
                     num_extreme,
                 )
 
-            # compute the percentage close to goal
-            success_rate = goal_counter / horizon
-            print("Success rate: %.2f" % (success_rate))
-            percent = success_rate
-            avg_percent += success_rate
+            # compute the total rewards of this task
+            done = False
+            total_rewards = 0.0
+            images = []
+
+            x0 = mdp.reset()  # x0.shape = ndarray (3, 80, 80)
+            images.append(x0)
+            # print(f"The length of the optimal_acitons is {len(optimal_actions)}.")  # 50
+            for u in optimal_actions:  # todo: how to save the trajectory?
+                # print(f"The control u of this step is {u}.\n")
+                x1, reward, done, _ = mdp.step(u)
+                total_rewards += reward
+                images.append(x1)
+                # if done:
+                #     break
+
+            # save images
+            for i in range(len(images)):
+                image = images[i].transpose(1, 2, 0)
+                image = Image.fromarray(image, "RGB")
+                path = f"{model_path}/images/task{task_counter}"
+                if not os.path.exists(path):
+                    os.makedirs(path)
+                image.save(f"{path}/x{i}.png")
+                
+            # calculate rewards
+            avg_rewards += total_rewards
             with open(model_path + "/result.txt", "a+") as f:
-                f.write(config["task"] + ": " + str(percent) + "\n")
+                f.write(config["task"] + ": " + str(total_rewards) + "\n")
+            print("Total rewards of this task is : " + str(total_rewards))
+            print("====================================")
 
-            # save trajectory as gif file
-            gif_path = model_path + "/task_{:01d}.gif".format(task_counter + 1)
-            save_traj(obs_traj, mdp.render(s_goal).squeeze(), gif_path, config["task"])
+            # # save trajectory as gif file
+            # gif_path = model_path + "/task_{:01d}.gif".format(task_counter + 1)
+            # save_traj(obs_traj, mdp.render(s_goal).squeeze(), gif_path, config["task"])
 
-        avg_percent = avg_percent / 10
-        print("Average success rate: " + str(avg_percent))
+        avg_rewards = avg_rewards / 10
+        print("Average rewards in 10 tasks with the same model is: " + str(avg_rewards))
         print("====================================")
-        avg_model_percent += avg_percent
-        if avg_percent > best_model_percent:
-            best_model = log_base
-            best_model_percent = avg_percent
-        with open(model_path + "/result.txt", "a+") as f:
-            f.write("Average percentage: " + str(avg_percent))
+        # avg_model_percent += avg_percent
+        # if avg_percent > best_model_percent:
+        #     best_model = log_base
+        #     best_model_percent = avg_percent
+        # with open(model_path + "/result.txt", "a+") as f:
+        #     f.write("Average percentage: " + str(avg_percent))
 
-    avg_model_percent = avg_model_percent / len(log_folders)
-    with open(ilqr_result_path + "/result.txt", "w") as f:
-        f.write("Average percentage of all models: " + str(avg_model_percent) + "\n")
-        f.write("Best model: " + best_model + ", best percentage: " + str(best_model_percent))
+    # avg_model_percent = avg_model_percent / len(log_folders)
+    # with open(ilqr_result_path + "/result.txt", "w") as f:
+    #     f.write("Average percentage of all models: " + str(avg_model_percent) + "\n")
+    #     f.write("Best model: " + best_model + ", best percentage: " + str(best_model_percent))
 
 
 if __name__ == "__main__":

@@ -2,6 +2,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from matplotlib.animation import FuncAnimation, writers
+import cv2
+import os
+from torchvision.transforms.functional import rgb_to_grayscale
+
 
 
 np.random.seed(0)
@@ -123,7 +127,7 @@ def forward(z_seq, u_seq, k, K, dynamics, alpha):
 
 
 def get_x_data(mdp, state, config):
-    image_data = mdp.render(state).squeeze()
+    image_data = mdp.render(state).squeeze()  # image_data.shape = ndarray (80, 80) 
     x_dim = config["obs_shape"]
     if config["task"] == "planar":
         x_dim = np.prod(x_dim)
@@ -135,9 +139,44 @@ def get_x_data(mdp, state, config):
     elif config["task"] in ["cartpole", "threepole"]:
         x_data = torch.zeros(size=(2, 80, 80))
         x_data[0, :, :] = torch.from_numpy(image_data)
-        x_data[1, :, :] = torch.from_numpy(image_data)
-        x_data = x_data.unsqueeze(0)
+        x_data[1, :, :] = torch.from_numpy(image_data)  # x_data.shape = tensor (2, 80, 80)
+        x_data = x_data.unsqueeze(0)  # x_data.shape = tensor (1, 2, 80, 80)
     return x_data
+
+def get_x_data_comparison(mdp, config):
+    if config["task"] == "ccartpole":
+        x0 = mdp.reset()  # ndarray (3, 80, 80) 
+        x0 = torch.from_numpy(x0) # tensor (3, 80, 80) 
+        x0 = rgb_to_grayscale(x0).numpy().squeeze()  # ndarray (80, 80)
+        x_data = torch.zeros(size=(2, 80, 80))
+        x_data[0, :, :] = torch.from_numpy(x0)
+        x_data[1, :, :] = torch.from_numpy(x0)
+        x_data = x_data.unsqueeze(0)  # x_data.shape = tensor (1, 2, 80, 80)
+    else: 
+        print("Check the task name!")
+    return x_data, x0
+
+def get_x_goal(config):
+    if config["task"] == "ccartpole":
+        x_data = torch.zeros(size=(2, 80, 80))
+        ROOT_PATH = "/localhome/hha160/Downloads/goal_images/cartpole"
+        tmp = cv2.imread(os.path.join(ROOT_PATH, "ezgif-frame-00{}.png".format(6)))
+        tmp_rgb = cv2.cvtColor(tmp, cv2.COLOR_BGR2RGB)
+        cropped_tmp_rgb = tmp_rgb[6:6+80, 6:6+80]
+        goal_obs = cropped_tmp_rgb
+        # from (h, w, c) to (c, h, w) for pytorch
+        goal_obs = np.transpose(goal_obs, (2,0,1)) / 255.0
+        goal_obs = torch.from_numpy(goal_obs)
+        goal_obs = rgb_to_grayscale(goal_obs)
+        x_data[0, :, :] = goal_obs
+        x_data[1, :, :] = goal_obs
+        x_data = x_data.unsqueeze(0)  # x_data.shape = tensor (1, 2, 80, 80)
+    else:
+        print("Check the task name!")
+    return x_data
+
+
+
 
 
 def update_horizon_start(mdp, s, u, encoder, config):
@@ -160,6 +199,15 @@ def update_horizon_start(mdp, s, u, encoder, config):
     with torch.no_grad():
         z_next = encoder(x_next).mean
     return s_next, z_next.squeeze().numpy()
+
+def updata_horizon_start_comparison(mdp, z_start_horizon, u, dynamics, config):
+    if config["task"] == "ccartpole":
+        with torch.no_grad():
+            z_next = dynamics(torch.from_numpy(z_start_horizon).unsqueeze(0), torch.from_numpy(u).unsqueeze(0))[0].mean
+        z_next = z_next.squeeze().numpy()
+    else:
+        print("Check the task name!")
+    return z_next
 
 
 def random_uniform_actions(mdp, plan_len):
@@ -188,6 +236,16 @@ def random_actions_trajs(mdp, num_uniform, num_extreme, plan_len):
         actions_trajs.append(random_extreme_actions(mdp, plan_len))
     return actions_trajs # has 6 elements, each element's length is 10
 
+def random_actions_trajs_comparison(mdp, num_uniform, num_extreme, plan_len):
+    actions_trajs = []
+    for _ in range(num_extreme + num_uniform):  # 6 = num_uniform + num_extreme
+        actions = []
+        for i in range(plan_len):
+            action = mdp.action_space.sample()
+            actions.append(action)
+        actions_trajs.append(np.array(actions))
+    return actions_trajs
+
 
 def refresh_actions_trajs(actions_trajs, traj_opt_id, mdp, length, num_uniform, num_extreme):
     for traj_id in range(len(actions_trajs)):
@@ -203,6 +261,30 @@ def refresh_actions_trajs(actions_trajs, traj_opt_id, mdp, length, num_uniform, 
             actions_trajs[traj_id] = random_uniform_actions(mdp, length)
         else:
             actions_trajs[traj_id] = random_extreme_actions(mdp, length)
+    return actions_trajs
+
+def refresh_actions_trajs_comparison(actions_trajs, traj_opt_id, mdp, length, num_uniform, num_extreme):
+    for traj_id in range(len(actions_trajs)):
+        if traj_id == traj_opt_id:
+            actions_trajs[traj_id] = actions_trajs[traj_id][1:]
+            if len(actions_trajs[traj_id]) < length:
+                # Duplicate last action.
+                actions_trajs[traj_id] = np.append(
+                    actions_trajs[traj_id], actions_trajs[traj_id][-1].reshape(1, -1), axis=0
+                )
+            continue    
+        if traj_id < num_uniform:
+            random_actions = []
+            for _ in range(length):  # 10
+                action = mdp.action_space.sample()
+                random_actions.append(action)
+            actions_trajs[traj_id] = np.array(random_actions)
+        else:
+            random_actions = []
+            for _ in range(length):  # 10
+                action = mdp.action_space.sample()
+                random_actions.append(action)
+            actions_trajs[traj_id] = np.array(random_actions)
     return actions_trajs
 
 
@@ -222,9 +304,9 @@ def update_seq_act(z_seq, z_start, u_seq, k, K, dynamics):
 
 
 def compute_latent_traj(z_start, u_seq, dynamics):
-    plan_len = len(u_seq)
+    plan_len = len(u_seq)  # 10
     z_seq = [z_start]
-    for i in range(plan_len):
+    for i in range(plan_len):  # plan_len = 10
         z = torch.from_numpy(z_seq[i]).view(1, -1).double()
         u = torch.from_numpy(u_seq[i]).view(1, -1).double()
         with torch.no_grad():
@@ -258,7 +340,7 @@ def seq_jacobian(dynamics, z_seq, u_seq):
     compute the jacobian w.r.t each pair in the trajectory
     """
     A_seq, B_seq = [], []
-    horizon = len(u_seq)
+    horizon = len(u_seq)  # 10
     for i in range(horizon):
         z, u = z_seq[i], u_seq[i]
         A, B = jacobian(dynamics, z, u)

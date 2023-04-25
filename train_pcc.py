@@ -8,7 +8,7 @@ from os import path
 import numpy as np
 import torch
 import torch.optim as optim
-from datasets import CartPoleDataset, PendulumDataset, PlanarDataset, ThreePoleDataset
+from datasets import CartPoleDataset, PendulumDataset, PlanarDataset, ThreePoleDataset, CCartpoleDataset
 from latent_map_planar import draw_latent_map
 from losses import KL, ae_loss, bernoulli, curvature, entropy, gaussian, vae_bound
 from mdp.plane_obstacles_mdp import PlanarObstaclesMDP
@@ -25,12 +25,14 @@ datasets = {
     "pendulum": PendulumDataset,
     "cartpole": CartPoleDataset,
     "threepole": ThreePoleDataset,
+    "ccartpole": CCartpoleDataset,
 }
 dims = {
     "planar": (1600, 2, 2),
     "pendulum": (4608, 3, 1),
     "cartpole": ((2, 80, 80), 8, 1),
     "threepole": ((2, 80, 80), 8, 3),
+    "ccartpole": ((2, 80, 80), 8, 1),
 }
 
 
@@ -173,7 +175,7 @@ def train(model, env_name, train_loader, lam, vae_coeff, determ_coeff, optimizer
 
 def main(args):
     env_name = args.env
-    assert env_name in ["planar", "pendulum", "cartpole", "threepole"]
+    assert env_name in ["planar", "pendulum", "cartpole", "threepole", "ccartpole"]
     armotized = args.armotized
     log_dir = args.log_dir
     seed = args.seed
@@ -197,12 +199,13 @@ def main(args):
     def _init_fn(worker_id):
         np.random.seed(int(seed))
 
+    # load the dataset
     dataset = datasets[env_name]
     data = dataset(sample_size=data_size, noise=noise_level)
     data_loader = DataLoader(
         data, batch_size=batch_size, shuffle=True, drop_last=False, num_workers=4, worker_init_fn=_init_fn
     )
-
+    # initialize the PCC networks, todo: add the encoder + dynamics + decoder in the networks
     x_dim, z_dim, u_dim = dims[env_name]
     model = PCC(armotized=armotized, x_dim=x_dim, z_dim=z_dim, u_dim=u_dim, env=env_name).to(device)
 
