@@ -8,3 +8,8 @@ logs
 planar
 pendulum
 .ipynb_checkpoints/
+
+data/cartpole/*
+data/pendulum/*
+data/planar/*
+data/comparison_cartpole/*
