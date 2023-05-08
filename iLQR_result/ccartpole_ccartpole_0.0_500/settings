@@ -2,5 +2,5 @@
   "task": "ccartpole",
   "setting_path": "result/ccartpole",
   "noise": 0.0,
-  "epoch": 2000
+  "epoch": 500
 }

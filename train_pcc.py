@@ -205,7 +205,7 @@ def main(args):
     data_loader = DataLoader(
         data, batch_size=batch_size, shuffle=True, drop_last=False, num_workers=4, worker_init_fn=_init_fn
     )
-    # initialize the PCC networks, todo: add the encoder + dynamics + decoder in the networks
+    # initialize the PCC networks
     x_dim, z_dim, u_dim = dims[env_name]
     model = PCC(armotized=armotized, x_dim=x_dim, z_dim=z_dim, u_dim=u_dim, env=env_name).to(device)
 

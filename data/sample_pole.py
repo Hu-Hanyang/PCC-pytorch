@@ -42,9 +42,8 @@ def sample(env_name, sample_size, noise):
     # Generate interaction tuples (random states and actions).
     for sample in trange(sample_size, desc="Sampling " + env_name + " data"):
         s0 = mdp.sample_random_state()
-        x0 = mdp.render(s0)
-        # print(f"The size of one image is {x0.shape}. \n")
-        a0 = mdp.sample_random_action()
+        x0 = mdp.render(s0)  # x0.shape = (80, 80, 1)
+        a0 = mdp.sample_random_action()  # a0.shape = (1, )
         s1 = mdp.transition_function(s0, a0)
 
         x1 = mdp.render(s1)
@@ -53,19 +52,18 @@ def sample(env_name, sample_size, noise):
         x2 = mdp.render(s2)
         # Store interaction tuple.
         # Current state (w/ history).
-        x_data[sample, :, :, 0] = x0[:, :, 0]
+        x_data[sample, :, :, 0] = x0[:, :, 0]  # x_data.shape = (sample_size, 80, 80, 2)
         x_data[sample, :, :, 1] = x1[:, :, 0]
         state_data[sample, :, 0] = s0
         state_data[sample, :, 1] = s1
         # Action.
         u_data[sample] = a1
         # Next state (w/ history).
-        x_next_data[sample, :, :, 0] = x1[:, :, 0]
+        x_next_data[sample, :, :, 0] = x1[:, :, 0]  # x_next_data.shape = (sample_size, 80, 80, 2)
         x_next_data[sample, :, :, 1] = x2[:, :, 0]
         state_next_data[sample, :, 0] = s1
         state_next_data[sample, :, 1] = s2
-    # print(f"The shape of x_data is {x_data.shape}. \n")
-    # print(f"The shape of x_next_data is {x_next_data.shape}. \n")
+
     return x_data, u_data, x_next_data, state_data, state_next_data
 
 

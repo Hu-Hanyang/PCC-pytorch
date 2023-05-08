@@ -60,20 +60,20 @@ def sample(env_name, sample_size, noise):
 
     # Generate interaction tuples (random states and actions).
     for sample in trange(sample_size, desc="Sampling " + env_name + " data"):
-        x0 = env.reset()  # x0.shape = [3, 100, 100]
+        x0 = env.reset()  # x0.shape = [3, 80, 80], todo: all the same data?
         u0 = env.action_space.sample()
         x1, _, _, _ = env.step(u0)
         u1 = env.action_space.sample()  # save this
         x2, _, _, _ = env.step(u1)
-        x0, x1, x2 = rgb_to_gray(x0, x1, x2)  # shape: [1, 100, 100]
+        x0, x1, x2 = rgb_to_gray(x0, x1, x2)  # shape: [1, 80, 80]
         # Current state
-        x_data[sample, 0, :, :] = x0
-        x_data[sample, 1, :, :] = x1
+        x_data[sample, 0, :, :] = x0[0, :, :]
+        x_data[sample, 1, :, :] = x1[0, :, :]
         # Action
         u_data[sample] = u1
         # Next state
-        x_next_data[sample, 0, :, :] = x1
-        x_next_data[sample, 1, :, :] = x2
+        x_next_data[sample, 0, :, :] = x1[0, :, :]
+        x_next_data[sample, 1, :, :] = x2[0, :, :]
 
     return x_data, u_data, x_next_data
 
@@ -147,7 +147,7 @@ def main(args):
     sample_size = args.sample_size
     noise = args.noise
     env_name = args.env
-    assert env_name in ["pendulum", "cartpole", "threepole"]
+    assert env_name in ["pendulum", "cartpole", "threepole", "ccartpole"]
     write_to_file(env_name, sample_size, noise)
 
 

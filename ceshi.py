@@ -91,6 +91,47 @@ def rgb_to_gray(x0, x1, x2):
     x2 = x2.numpy()
     return x0, x1, x2
 
+def save_images(data, env_name):
+    """
+    Transfer the input data to greyscale images
+    Parameters
+    data: tuple
+        (x, u, x_next_data), all elements are tensor
+    """
+    len_data = len(data)
+    data_x = np.zeros((len_data+1, 80, 80))
+    for i in range(len_data):
+        data_x[i, :, :] = data[i][0][0].numpy()
+    data_x[len_data, :, :] = data[-1][2][0].numpy()
+
+    for j in range(len_data+1):
+        image = Image.fromarray(data_x[j], "L")
+        path = f"./debug_images/{env_name}"
+        if not os.path.exists(path):
+                os.makedirs(path)
+        image.save(f"{path}/x{j}.png")
+
+## debuging 2nd, May, 2023
+# mdp = CartPoleMDP()
+# s0 = mdp.sample_random_state()
+# x0 = mdp.render(s0)
+# print(f"The size of one image x0 is {x0.shape}. \n")
+# a0 = mdp.sample_random_action()
+# print(f"The size of the action a0 is {a0.shape}. \n")
+
+data_cartpole = CartPoleDataset(sample_size=100, noise=0.1)
+# print(data_cartpole[50][0])
+data_ccartpole = CCartpoleDataset(sample_size=100, noise=0)
+# print(data_ccartpole[50][0])
+x, u, x_next = data_ccartpole[13]
+print(f"The shape of x is {x.shape}.")
+x1 = x[1, :, :].numpy()
+# x1 = np.uint8(x1)  # todo: it seems that the data type would affect the image
+print(x1)
+print(f"The shape of image x1 is {x1.shape}.")
+x1 = Image.fromarray(x1, "L")
+x1.show()  # not correct
+
 
 # test baseline
 env_name = "ccartpole"
@@ -106,27 +147,66 @@ env = dmc2gym.make(
         seed=config['seed'],
         visualize_reward=False,
         from_pixels=(config['env']['encoder_type'] == 'pixel'),  # (config['env']['encoder_type'] == 'pixel')
-        height=config['env']['pre_transform_image_size'],
-        width=config['env']['pre_transform_image_size'],
+        height=100,  # config['env']['pre_transform_image_size']
+        width=20,  # config['env']['pre_transform_image_size']
         frame_skip=config['env']['action_repeat'])
 
-# print(env.observation_space)  # Box(0, 255, (3, 80, 80), uint8)
-    
-x0 = env.reset()  # x0.shape = (3, 80, 80)
-# action_spec = env.action_spec()
-# print(action_spec)
+# x0 = env.reset()  # x0.shape = (3, 80, 80)
+# x0 = torch.from_numpy(x0)
+# x0 = rgb_to_grayscale(x0)
+# x0 = x0.numpy()
 # print(x0.shape)
-x0 = x0.transpose(1, 2, 0)
-print(x0.shape)
-image0 = Image.fromarray(x0, 'RGB')
-# image0.show()
-i = 1
-name = "test_image.png"
-path = f"test_images/task{i}"
-if not os.path.exists(path):
-      os.makedirs(path)
+# x0 = Image.fromarray(x0[0, :], "L")
+# x0.show()
+# x_data = np.zeros((10, 2, 80, 80), dtype="float32") 
+x_data = np.zeros((10, 2, 100, 20), dtype="float32") 
+x0 = env.reset()  # x0.shape = [3, 80, 80]
+print(f"The shape of x0 is {x0.shape}.")
+u0 = env.action_space.sample()
+x1, _, _, _ = env.step(u0)
+u1 = env.action_space.sample()  # save this
+x2, _, _, _ = env.step(u1)
+x0, x1, x2 = rgb_to_gray(x0, x1, x2)  # shape: [1, 80, 80]
+# print(x0.dtype)  # (1, 80, 80)
+image_x0 = Image.fromarray(x0[0, :], "L")
+image_x0.show()  # correct
 
-image0.save(f"{path}/{name}")
+print(x_data.shape)
+x_data[0, 0, :, :] = x1[0, :, :]  # np.stack or hstack?
+x_data[0, 1, :, :] = x2[0, :, :]
+# print(x_data[0][0].dtype)
+
+# # x_data = np.uint8(x_data) 
+
+# # image1 = Image.fromarray(np.uint8(x_data[0, 0, :, :]), "L")
+# image1 = Image.fromarray(x_data[0, 0, :, :], "L")
+
+# # image1.show()  # 
+
+# image2 = Image.fromarray(np.uint8(x_data[0, 1, :, :]), "L")
+# # image2.show()
+
+# print(x_data.dtype)
+# # print(x_data[0][0])
+
+
+
+
+
+
+# # action_spec = env.action_spec()
+# # print(action_spec)
+# x0 = x0.transpose(1, 2, 0)
+# print(x0.shape)
+# image0 = Image.fromarray(x0, 'RGB')
+# # image0.show()
+# i = 1
+# name = "test_image.png"
+# path = f"test_images/task{i}"
+# if not os.path.exists(path):
+#       os.makedirs(path)
+
+# image0.save(f"{path}/{name}")
 
     
 # x0 = torch.from_numpy(x0)

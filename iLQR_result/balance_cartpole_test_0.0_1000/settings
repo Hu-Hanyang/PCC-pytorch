@@ -1,6 +1,0 @@
-{
-  "task": "balance",
-  "setting_path": "result/cartpole/cartpole_test",
-  "noise": 0.0,
-  "epoch": 1000
-}

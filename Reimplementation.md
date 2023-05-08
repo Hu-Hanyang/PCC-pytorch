@@ -50,8 +50,8 @@ tensorboard --logdir=logs/planar/planar_2
 ### 1.5 
 
 ### 1.4 Using iLQR
-1. python ilqr.py --task=planar --setting_path="result/planar"
-2. python ilqr.py --task=planar --setting_path="result/planar" --epoch=5000
+python ilqr.py --task=planar --setting_path="result/planar"
+python ilqr.py --task=planar --setting_path="result/planar" --epoch=5000
 #### 1.4.1 questions
 1   settings 中的 armotized是什么意思？
     A: 是否使用linear approximation to the Jacobians.
@@ -153,11 +153,32 @@ python train_pcc.py \
     --iter_save=1000 \
     --save_map=False
 
+debugging:
+python train_pcc.py \
+    --env=cartpole\
+    --armotized=False \
+    --log_dir=cartpole_debug \
+    --seed=1 \
+    --data_size=10 \
+    --noise=0.1 \
+    --batch_size=2 \
+    --lam_p=1.0 \
+    --lam_c=7.0 \
+    --lam_cur=1.0 \
+    --vae_coeff=0.01 \
+    --determ_coeff=0.3 \
+    --lr=0.0005 \
+    --decay=0.001 \
+    --num_iter=5000 \
+    --iter_save=1000 \
+    --save_map=False
+
 ### 3.2 Showing Training Results
 tensorboard --logdir=logs/cartpole/cartpole_test
+tensorboard --logdir=logs/cartpole/cartpole_2
 
 ### 3.3 Using iLQR
-python ilqr.py --task=balance --setting_path="result/cartpole" --epoch=3000
+python ilqr.py --task=balance --setting_path="result/cartpole" --epoch=5000
 
 ## 4 CCartpole (our baseline)
 ### 4.1 Training PCC
@@ -215,6 +236,121 @@ debug lines:
             "console": "integratedTerminal",
             "justMyCode": true
         }
+
+python train_pcc.py \
+    --env=ccartpole\
+    --armotized=False \
+    --log_dir=ccartpole1 \
+    --seed=1 \
+    --data_size=15000 \
+    --noise=0.1 \
+    --batch_size=32 \
+    --lam_p=1.0 \
+    --lam_c=7.0 \
+    --lam_cur=1.0 \
+    --vae_coeff=0.01 \
+    --determ_coeff=0.3 \
+    --lr=0.0005 \
+    --decay=0.001 \
+    --num_iter=5000 \
+    --iter_save=1000 \
+    --save_map=False
+
+After revise the bug of image sampling:
+python train_pcc.py \
+    --env=ccartpole\
+    --armotized=False \
+    --log_dir=ccartpole_test \
+    --seed=1 \
+    --data_size=100 \
+    --noise=0.1 \
+    --batch_size=32 \
+    --lam_p=1.0 \
+    --lam_c=7.0 \
+    --lam_cur=1.0 \
+    --vae_coeff=0.01 \
+    --determ_coeff=0.3 \
+    --lr=0.0005 \
+    --decay=0.001 \
+    --num_iter=500 \
+    --iter_save=100 \
+    --save_map=False
+
+python train_pcc.py \
+    --env=ccartpole\
+    --armotized=False \
+    --log_dir=ccartpole1 \
+    --seed=1 \
+    --data_size=15000 \
+    --noise=0.1 \
+    --batch_size=32 \
+    --lam_p=1.0 \
+    --lam_c=7.0 \
+    --lam_cur=1.0 \
+    --vae_coeff=0.01 \
+    --determ_coeff=0.3 \
+    --lr=0.0005 \
+    --decay=0.001 \
+    --num_iter=5000 \
+    --iter_save=1000 \
+    --save_map=False
+
+python train_pcc.py \
+    --env=ccartpole\
+    --armotized=False \
+    --log_dir=ccartpole_test2 \
+    --seed=1 \
+    --data_size=200 \
+    --noise=0.1 \
+    --batch_size=32 \
+    --lam_p=1.0 \
+    --lam_c=7.0 \
+    --lam_cur=1.0 \
+    --vae_coeff=0.01 \
+    --determ_coeff=0.3 \
+    --lr=0.0005 \
+    --decay=0.001 \
+    --num_iter=500 \
+    --iter_save=100 \
+    --save_map=False
+
+python train_pcc.py \
+    --env=ccartpole\
+    --armotized=False \
+    --log_dir=ccartpole_test3 \
+    --seed=1 \
+    --data_size=10000 \
+    --noise=0.1 \
+    --batch_size=32 \
+    --lam_p=1.0 \
+    --lam_c=7.0 \
+    --lam_cur=1.0 \
+    --vae_coeff=0.01 \
+    --determ_coeff=0.3 \
+    --lr=0.0005 \
+    --decay=0.001 \
+    --num_iter=5000 \
+    --iter_save=1000 \
+    --save_map=False
+
+python train_pcc.py \
+    --env=ccartpole\
+    --armotized=True \
+    --log_dir=ccartpole_debug \
+    --seed=1 \
+    --data_size=10000 \
+    --noise=0.1 \
+    --batch_size=32 \
+    --lam_p=1.0 \
+    --lam_c=7.0 \
+    --lam_cur=1.0 \
+    --vae_coeff=0.01 \
+    --determ_coeff=0.3 \
+    --lr=0.0005 \
+    --decay=0.001 \
+    --num_iter=5000 \
+    --iter_save=1000 \
+    --save_map=False
 ### 3.2 Showing Training Results
 tensorboard --logdir=logs/ccartpole
 

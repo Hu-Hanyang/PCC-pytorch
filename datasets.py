@@ -158,8 +158,7 @@ class CartPoleDataset(BaseDataset):
                 data_x[i] = self._process_image(x_numpy_data[i])
                 data_u[i] = torch.from_numpy(u_numpy_data[i])
                 data_x_next[i] = self._process_image(x_next_numpy_data[i])
-            # print(f"The shape of each element of data_x is {data_x[0].shape}. \n")
-            # print(f"The first two elements of data_x are {data_x[5]}. \n")
+          
             data_set = (data_x, data_u, data_x_next)
 
             with open(self.data_path + "{:d}_{:.0f}.pt".format(self.sample_size, self.noise), "wb") as f:
